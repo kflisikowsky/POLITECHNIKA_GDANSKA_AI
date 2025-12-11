@@ -1,20 +1,20 @@
-"""
-TRANSFORMER
-Klasyfikacja sentymentu IMDB z własnoręcznie zbudowanym blokiem Transformera:
- - Positional Embedding
- - Multi-Head Attention (Keras)
- - Feed-Forward Network
- - Residual + LayerNorm
- - Zapisywanie i prezentacja wag UWAGI (attention)
+# TRANSFORMER
+# Klasyfikacja sentymentu IMDB z własnoręcznie zbudowanym blokiem Transformera:
+#  - Positional Embedding
+#  - Multi-Head Attention (Keras)
+#  - Feed-Forward Network
+#  - Residual + LayerNorm
+#  - Zapisywanie i prezentacja wag UWAGI (attention)
 
-Kod gotowy do uruchomienia w Pythonie/Colabie.
-"""
+# Kod gotowy do uruchomienia w Pythonie/Colabie.
+
 
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.datasets import imdb
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import keras
 
 
 # ------------------------------------------------------------
@@ -46,7 +46,7 @@ class PositionalEmbedding(layers.Layer):
         return token_embeddings + pos_embeddings
 
     def compute_mask(self, inputs, mask=None):
-        return tf.math.not_equal(inputs, 0)  # True = real token
+        return keras.ops.not_equal(inputs, 0)  # True = real token
 
 
 # ------------------------------------------------------------
@@ -55,6 +55,7 @@ class PositionalEmbedding(layers.Layer):
 class TransformerBlock(layers.Layer):
     def __init__(self, embed_dim, num_heads, ff_dim):
         super().__init__()
+        # Correctly pass num_heads from init parameters to MultiHeadAttention
         self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
         self.ffn = tf.keras.Sequential([
             layers.Dense(ff_dim, activation="relu"),
@@ -91,10 +92,18 @@ def build_model():
     inputs = layers.Input(shape=(MAX_LEN,), dtype="int32")
     x = PositionalEmbedding(MAX_LEN, VOCAB_SIZE, EMBED_DIM)(inputs)
 
-    mask = tf.math.not_equal(inputs, 0)
+    # Create a 2D padding mask (True for real tokens, False for padding)
+    padding_mask = keras.ops.not_equal(inputs, 0) # Shape: (batch_size, MAX_LEN)
+
+    # Expand the 2D padding mask to a 3D mask suitable for MultiHeadAttention
+    # This creates a mask of shape (batch_size, MAX_LEN, MAX_LEN)
+    # True where both query and key tokens are not padding.
+    query_mask = keras.ops.expand_dims(padding_mask, axis=-1)  # Shape: (batch_size, MAX_LEN, 1)
+    key_mask = keras.ops.expand_dims(padding_mask, axis=-2)   # Shape: (batch_size, 1, MAX_LEN)
+    attention_mask = keras.ops.logical_and(query_mask, key_mask) # Shape: (batch_size, MAX_LEN, MAX_LEN)
 
     tblock = TransformerBlock(EMBED_DIM, NUM_HEADS, FF_DIM)
-    x = tblock(x, mask=mask)
+    x = tblock(x, mask=attention_mask)
 
     x = layers.GlobalAveragePooling1D()(x)
     x = layers.Dropout(0.2)(x)
@@ -157,7 +166,7 @@ def demo_prediction(model, block, text):
 
         decoded = decode_imdb(seq[0])
 
-        print("\nNajważniejsze tokeny wg attention:")
+        print("\nNajwa\u017Cniejsze tokeny wg attention:")
         words = decoded.split()
         for idx in top:
             if idx < len(words):
@@ -165,17 +174,17 @@ def demo_prediction(model, block, text):
 
 
 # ------------------------------------------------------------
-# GŁÓWNY PROGRAM
+# G\u0141\u00D3WNY PROGRAM
 # ------------------------------------------------------------
 def main():
-    print("Ładowanie IMDB…")
+    print("\u0141adowanie IMDB\u2026")
     (x_train, y_train), (x_test, y_test) = load_data()
 
-    print("Budowanie modelu…")
+    print("Budowanie modelu\u2026")
     model, block = build_model()
     model.summary()
 
-    print("\nTrening…")
+    print("\nTrening\u2026")
     model.fit(
         x_train, y_train,
         validation_split=0.2,
@@ -184,7 +193,7 @@ def main():
     )
 
     loss, acc = model.evaluate(x_test, y_test, verbose=0)
-    print(f"\nAccuracy na teście: {acc:.4f}")
+    print(f"\nAccuracy na te\u015Bcie: {acc:.4f}")
 
     # Demo predykcji
     demo_prediction(model, block,
